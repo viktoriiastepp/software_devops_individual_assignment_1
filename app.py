@@ -1,12 +1,16 @@
 import os
+
 from flask import Flask
 
-# All configuration comes from environment variables, with safe defaults
+from bookings import repository as bookings_repository
+
+# Port comes from an environment variable with a safe default
 PORT = int(os.environ.get("PORT", "8080"))
-DATA_DIR = os.environ.get("DATA_DIR", "data")
 
 
 def create_app():
+    bookings_repository.init_schema()  # tables are created automatically at startup, no manual migration
+
     app = Flask(__name__)
 
     @app.route("/health")
@@ -17,5 +21,5 @@ def create_app():
 
 
 if __name__ == "__main__":
-    os.makedirs(DATA_DIR, exist_ok=True)  # create the data folder automatically, no manual setup
-    create_app().run(host="0.0.0.0", port=PORT, debug=False)  # 0.0.0.0 so it works in a container; debug off keeps one process
+    # 0.0.0.0 so it works inside a container; debug off keeps it to one process
+    create_app().run(host="0.0.0.0", port=PORT, debug=False)
