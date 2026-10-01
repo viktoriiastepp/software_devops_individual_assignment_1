@@ -3,13 +3,16 @@ import os
 from flask import Flask
 
 from bookings import repository as bookings_repository
+from matchmaking import repository as matchmaking_repository
 
 # Port comes from an environment variable with a safe default
 PORT = int(os.environ.get("PORT", "8080"))
 
 
 def create_app():
-    bookings_repository.init_schema()  # tables are created automatically at startup, no manual migration
+    # Each domain creates its own tables at startup, no manual migration
+    bookings_repository.init_schema()
+    matchmaking_repository.init_schema()
 
     app = Flask(__name__)
 
