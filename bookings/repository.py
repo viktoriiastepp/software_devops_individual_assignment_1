@@ -84,12 +84,3 @@ def bookings_for_user(user_id):
     ).fetchall()
     conn.close()
     return rows
-
-
-def bookings_for_user(user_id):
-    conn = get_connection()
-    rows = conn.execute(
-        "SELECT * FROM bookings WHERE user_id = ? ORDER BY start_time", (user_id,)
-    ).fetchall()
-    conn.close()
-    return rows
