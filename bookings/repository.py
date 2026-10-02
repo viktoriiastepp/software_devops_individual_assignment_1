@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS courts (
 CREATE TABLE IF NOT EXISTS bookings (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     court_id INTEGER NOT NULL REFERENCES courts(id),
-    player_name TEXT NOT NULL,
+    user_id INTEGER NOT NULL,  -- belongs to the accounts domain, no FOREIGN KEY on purpose
     start_time TEXT NOT NULL,
     end_time TEXT NOT NULL,
     status TEXT NOT NULL DEFAULT 'active',
@@ -48,11 +48,11 @@ def active_bookings_for_court(court_id):
     return rows
 
 
-def create_booking(court_id, player_name, start, end):
+def create_booking(court_id, user_id, start, end):
     conn = get_connection()
     cursor = conn.execute(
-        "INSERT INTO bookings (court_id, player_name, start_time, end_time) VALUES (?, ?, ?, ?)",
-        (court_id, player_name, start.isoformat(), end.isoformat()),
+        "INSERT INTO bookings (court_id, user_id, start_time, end_time) VALUES (?, ?, ?, ?)",
+        (court_id, user_id, start.isoformat(), end.isoformat()),
     )
     conn.commit()
     booking_id = cursor.lastrowid
@@ -75,3 +75,12 @@ def cancel_booking(booking_id, late):
     )
     conn.commit()
     conn.close()
+
+
+def bookings_for_user(user_id):
+    conn = get_connection()
+    rows = conn.execute(
+        "SELECT * FROM bookings WHERE user_id = ? ORDER BY start_time", (user_id,)
+    ).fetchall()
+    conn.close()
+    return rows

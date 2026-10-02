@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Padel Matchmaker{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <header>
+    <a class="brand" href="{{ url_for('home') }}">Padel Matchmaker</a>
+    {% if session.get('user_id') %}
+      <span class="user">Signed in as {{ session['username'] }}</span>
+      <form method="post" action="{{ url_for('accounts.logout') }}">
+        <button type="submit">Log out</button>
+      </form>
+    {% endif %}
+  </header>
+  <main>
+    {% for message in get_flashed_messages() %}
+      <p class="flash">{{ message }}</p>
+    {% endfor %}
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>
