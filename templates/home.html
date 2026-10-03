@@ -1,5 +1,10 @@
 {% extends "base.html" %}
 {% block content %}
 <h1>Welcome, {{ username }}</h1>
-<p>Book a court or join a balanced game at your level.</p>
+<div class="tiles">
+  <a class="card tile" href="{{ url_for('bookings.index') }}">Book a court
+    <span>Pick a court and a 90-minute slot.</span></a>
+  <a class="card tile" href="{{ url_for('matchmaking.index') }}">Find a game
+    <span>Join balanced games at your level.</span></a>
+</div>
 {% endblock %}

@@ -10,3 +10,17 @@ button { padding: 0.5rem 1rem; border: none; border-radius: 4px; background: #1f
 header button { background: white; color: #1f6f4a; }
 .flash { background: #fdecea; border-left: 4px solid #c0392b; padding: 0.6rem 0.8rem; }
 .hint { margin: 0; color: #5b6b60; font-size: 0.9rem; }
+nav { display: flex; gap: 1rem; }
+nav a { color: white; text-decoration: none; }
+h2 { margin-top: 1.8rem; }
+.flash.success { background: #e7f5ec; border-left-color: #1f6f4a; }
+table { width: 100%; border-collapse: collapse; background: white; margin-bottom: 1rem; }
+th, td { padding: 0.5rem 0.7rem; text-align: left; border-bottom: 1px solid #e3e8e4; }
+td form { display: inline; margin: 0; }
+.actions { display: flex; gap: 0.6rem; align-items: center; }
+select { padding: 0.5rem; font-size: 1rem; }
+button.secondary { background: #8a9a8f; }
+.teams { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
+.tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.tile { text-decoration: none; color: inherit; font-weight: bold; font-size: 1.1rem; }
+.tile span { font-weight: normal; font-size: 0.95rem; color: #5b6b60; }

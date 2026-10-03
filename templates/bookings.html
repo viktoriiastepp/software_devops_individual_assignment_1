@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Bookings · Padel Matchmaker{% endblock %}
+{% block content %}
+<h1>Book a court</h1>
+<form method="post" class="card">
+  <label>Court
+    <select name="court_id">
+      {% for court in courts %}<option value="{{ court.id }}">{{ court.name }}</option>{% endfor %}
+    </select>
+  </label>
+  <label>Start time <input type="datetime-local" name="start_time" step="1800" required></label>
+  <p class="hint">Each slot lasts 90 minutes. The club is open 08:00-23:00.</p>
+  <button type="submit">Book</button>
+</form>
+
+<h2>My bookings</h2>
+{% if bookings %}
+<table>
+  <tr><th>Court</th><th>Start</th><th>End</th><th>Status</th><th></th></tr>
+  {% for b in bookings %}
+  <tr>
+    <td>{{ court_names[b.court_id] }}</td>
+    <td>{{ b.start_time.replace('T', ' ')[:16] }}</td>
+    <td>{{ b.end_time.replace('T', ' ')[:16] }}</td>
+    <td>{{ b.status }}{% if b.cancelled_late %} (late){% endif %}</td>
+    <td>
+      {% if b.status == 'active' %}
+      <form method="post" action="{{ url_for('bookings.cancel', booking_id=b.id) }}">
+        <button type="submit" class="secondary">Cancel</button>
+      </form>
+      {% endif %}
+    </td>
+  </tr>
+  {% endfor %}
+</table>
+{% else %}
+<p>No bookings yet.</p>
+{% endif %}
+{% endblock %}
