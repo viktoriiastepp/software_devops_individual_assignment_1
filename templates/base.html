@@ -10,15 +10,18 @@
   <header>
     <a class="brand" href="{{ url_for('home') }}">Padel Matchmaker</a>
     {% if session.get('user_id') %}
-      <span class="user">Signed in as {{ session['username'] }}</span>
+      <nav>
+        <a href="{{ url_for('bookings.index') }}">Bookings</a>
+      </nav>
+      <span class="user">{{ session['username'] }}</span>
       <form method="post" action="{{ url_for('accounts.logout') }}">
         <button type="submit">Log out</button>
       </form>
     {% endif %}
   </header>
   <main>
-    {% for message in get_flashed_messages() %}
-      <p class="flash">{{ message }}</p>
+    {% for category, message in get_flashed_messages(with_categories=true) %}
+      <p class="flash {{ category }}">{{ message }}</p>
     {% endfor %}
     {% block content %}{% endblock %}
   </main>
