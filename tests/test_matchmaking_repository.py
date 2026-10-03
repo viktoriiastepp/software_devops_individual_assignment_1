@@ -31,3 +31,12 @@ def test_open_games_list_skips_full_games(temp_db):
     repo.assign_teams(full_id, [], [])
     open_ids = [game["id"] for game in repo.list_games_by_status("open")]
     assert open_ids == [open_id]
+
+
+def test_find_game_by_booking_and_games_of_a_player(temp_db):
+    game_id = repo.create_game(booking_id=5)
+    player = repo.get_or_create_player(user_id=1, name="Ana")
+    repo.add_player_to_game(game_id, player["id"])
+    assert repo.game_for_booking(5)["id"] == game_id
+    assert repo.game_for_booking(6) is None
+    assert [g["id"] for g in repo.games_for_player(player["id"])] == [game_id]
