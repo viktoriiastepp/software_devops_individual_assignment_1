@@ -112,3 +112,21 @@ def leaderboard(limit=20):
     rows = conn.execute("SELECT name, rating FROM players ORDER BY rating DESC LIMIT ?", (limit,)).fetchall()
     conn.close()
     return rows
+
+
+def game_for_booking(booking_id):
+    conn = get_connection()
+    row = conn.execute("SELECT * FROM games WHERE booking_id = ?", (booking_id,)).fetchone()
+    conn.close()
+    return row
+
+
+def games_for_player(player_id):
+    conn = get_connection()
+    rows = conn.execute(
+        "SELECT g.* FROM games g JOIN game_players gp ON gp.game_id = g.id "
+        "WHERE gp.player_id = ? ORDER BY g.id DESC",
+        (player_id,),
+    ).fetchall()
+    conn.close()
+    return rows

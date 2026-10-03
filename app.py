@@ -9,6 +9,7 @@ from accounts.routes import login_required
 from bookings import repository as bookings_repository
 from bookings.routes import bp as bookings_bp
 from matchmaking import repository as matchmaking_repository
+from matchmaking.routes import bp as matchmaking_bp
 
 PORT = int(os.environ.get("PORT", "8080"))
 
@@ -25,6 +26,7 @@ def create_app():
     app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY") or secrets.token_hex(32)
     app.register_blueprint(accounts_bp)
     app.register_blueprint(bookings_bp)
+    app.register_blueprint(matchmaking_bp)
 
     @app.route("/")
     @login_required

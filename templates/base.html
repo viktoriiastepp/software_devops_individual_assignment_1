@@ -12,6 +12,7 @@
     {% if session.get('user_id') %}
       <nav>
         <a href="{{ url_for('bookings.index') }}">Bookings</a>
+        <a href="{{ url_for('matchmaking.index') }}">Games</a>
       </nav>
       <span class="user">{{ session['username'] }}</span>
       <form method="post" action="{{ url_for('accounts.logout') }}">

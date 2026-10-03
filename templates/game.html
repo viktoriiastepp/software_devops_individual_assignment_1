@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Game #{{ game.id }} · Padel Matchmaker{% endblock %}
+{% block content %}
+<h1>Game #{{ game.id }}</h1>
+<p>
+  {% if booking %}{{ court_name }}, {{ booking.start_time.replace('T', ' ')[:16] }} · {% endif %}
+  Status: <strong>{{ game.status }}</strong>
+</p>
+
+{% if game.status == 'open' %}
+<h2>Players ({{ players|length }}/4)</h2>
+<ul>
+  {% for p in players %}<li>{{ p.name }} ({{ p.rating }})</li>{% endfor %}
+</ul>
+<p class="hint">Teams are balanced automatically when the fourth player joins.</p>
+{% else %}
+<div class="teams">
+  {% for team in [1, 2] %}
+  <div class="card">
+    <h2>Team {{ team }}{% if game.winning_team == team %} (winner){% endif %}</h2>
+    <ul>
+      {% for p in players if p.team == team %}<li>{{ p.name }} ({{ p.rating }})</li>{% endfor %}
+    </ul>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if game.status == 'full' and is_player %}
+<form method="post" action="{{ url_for('matchmaking.result', game_id=game.id) }}" class="card">
+  <label>Who won?
+    <select name="winning_team">
+      <option value="1">Team 1</option>
+      <option value="2">Team 2</option>
+    </select>
+  </label>
+  <button type="submit">Save result</button>
+</form>
+{% endif %}
+
+<p><a href="{{ url_for('matchmaking.index') }}">Back to games</a></p>
+{% endblock %}
