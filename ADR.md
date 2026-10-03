@@ -23,3 +23,11 @@ Context: A matchmaking game needs a court slot, and court slots belong to the bo
 Decision: Inside the bookings domain, bookings.court_id is a real foreign key to courts. The matchmaking games table will store booking_id as a plain INTEGER with no foreign key, and check that the booking exists through the bookings module's get_booking function.
 Alternatives considered: A FOREIGN KEY from games.booking_id to bookings.id, rejected because the database would enforce a link across domains, and the tables could not be moved into separate services with their own databases without changing the schema.
 Consequences: The database will not stop a game pointing at a missing booking, so the application must check it; bookings are cancelled with a status instead of deleted, which keeps that risk low. In return, each domain's tables can later live in its own database.
+
+## 4. Testing approach: business rules first, then repositories, then routes
+Date: 2026-10-03
+Status: Decided
+Context: The assignment requires at least 70% coverage of core business logic. The riskiest code is the booking rules, the Elo and team-balancing maths and the login checks, because a bug there silently gives wrong results instead of crashing.
+Decision: Keep each domain's rules in pure functions with no database and test them first, including boundary cases (back-to-back slots, cancelling exactly 24 hours before, a rating exactly 150 points from the game level). Repositories and routes are tested against a fresh temporary SQLite database per test, with a fast password-hashing setting in tests only.
+Alternatives considered: Testing mainly through the web pages with the Flask test client, rejected because a failing page test does not show which rule broke, and preparing four logged-in users for every rule check would make the tests slow and hard to read.
+Consequences: Rules and repositories are at 100% coverage and fail precisely; route tests cover the main user flows but not every error message, and the HTML templates themselves are not checked.
