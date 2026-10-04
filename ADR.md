@@ -31,3 +31,11 @@ Context: The assignment requires at least 70% coverage of core business logic. T
 Decision: Keep each domain's rules in pure functions with no database and test them first, including boundary cases (back-to-back slots, cancelling exactly 24 hours before, a rating exactly 150 points from the game level). Repositories and routes are tested against a fresh temporary SQLite database per test, with a fast password-hashing setting in tests only.
 Alternatives considered: Testing mainly through the web pages with the Flask test client, rejected because a failing page test does not show which rule broke, and preparing four logged-in users for every rule check would make the tests slow and hard to read.
 Consequences: Rules and repositories are at 100% coverage and fail precisely; route tests cover the main user flows but not every error message, and the HTML templates themselves are not checked.
+
+## 5. Not building social login or password-reset emails
+Date: 2026-10-04
+Status: Decided
+Context: After professor feedback the app needed a login system, so I had to decide how much authentication to build in the time left. Club members only need to identify themselves to book courts, join games and record results.
+Decision: Build simple username and password accounts with hashed passwords and session cookies, and deliberately not build Google/social login or password reset by email.
+Alternatives considered: Google sign-in (OAuth), rejected because it needs an external identity provider, client secrets and a public callback URL, which conflict with running locally in one container with no external runtime dependencies. Password-reset emails, rejected because they need an external email service.
+Consequences: A member who forgets their password currently has no way to recover the account without an administrator. In exchange the app has no external dependency and stays deployable as a single container.
