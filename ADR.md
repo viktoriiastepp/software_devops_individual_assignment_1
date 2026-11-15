@@ -39,3 +39,11 @@ Context: After professor feedback the app needed a login system, so I had to dec
 Decision: Build simple username and password accounts with hashed passwords and session cookies, and deliberately not build Google/social login or password reset by email.
 Alternatives considered: Google sign-in (OAuth), rejected because it needs an external identity provider, client secrets and a public callback URL, which conflict with running locally in one container with no external runtime dependencies. Password-reset emails, rejected because they need an external email service.
 Consequences: A member who forgets their password currently has no way to recover the account without an administrator. In exchange the app has no external dependency and stays deployable as a single container.
+
+## 6. Splitting into a bookings service and a matchmaking service
+Date: 2026-11-15
+Status: Decided
+Context: The monolith had three domains (accounts, bookings, matchmaking), but Assignment 2 allows exactly two service containers, each with its own database. ADR-2 had already kept every read of bookings data inside matchmaking/booking_lookup.py.
+Decision: Two services. The bookings service owns accounts and bookings (users, courts, bookings tables) and issues a signed login token. The matchmaking service owns players, games and game_players, verifies the token with a shared secret, and gets booking data only by calling the bookings service over HTTP from bookings_client.py, the old booking_lookup.py. The cross-seam flow is server side: opening a game and listing open games need the booking's status, owner and court.
+Alternatives considered: Accounts in the matchmaking service, rejected because checking who owns a booking is the core rule of the bookings domain and would then need a call on every booking. Joining the data in the browser, rejected because "only the owner can open a game on an active booking" must be checked on the server, where users cannot bypass it.
+Consequences: ADR-2 held: only one file changes from function calls to HTTP calls. Matchmaking now depends on bookings being up, so every call has a timeout and a designed fallback. The token secret must be the same in both services and is stored as a secret.
