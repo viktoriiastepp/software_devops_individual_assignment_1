@@ -1,7 +1,7 @@
 import os
 import sqlite3
 
-DB_FILENAME = "padel.db"
+DB_FILENAME = "bookings.db"
 
 
 def db_path():
