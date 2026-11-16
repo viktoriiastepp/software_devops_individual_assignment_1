@@ -1,14 +1,14 @@
 from matchmaking import repository as repo
 
 
-def test_same_user_always_gets_the_same_player(temp_db):
+def test_same_user_always_gets_the_same_player(clean_db):
     first = repo.get_or_create_player(user_id=1, name="Ana")
     second = repo.get_or_create_player(user_id=1, name="Ana")
     assert first["id"] == second["id"]
     assert first["rating"] == 1000
 
 
-def test_full_game_flow_saves_teams_and_new_ratings(temp_db):
+def test_full_game_flow_saves_teams_and_new_ratings(clean_db):
     game_id = repo.create_game(booking_id=42)
     ids = [repo.get_or_create_player(user_id=i, name=f"Player {i}")["id"] for i in range(1, 5)]
     for player_id in ids:
@@ -25,7 +25,7 @@ def test_full_game_flow_saves_teams_and_new_ratings(temp_db):
     assert repo.leaderboard()[0]["rating"] == 1016
 
 
-def test_open_games_list_skips_full_games(temp_db):
+def test_open_games_list_skips_full_games(clean_db):
     open_id = repo.create_game(booking_id=1)
     full_id = repo.create_game(booking_id=2)
     repo.assign_teams(full_id, [], [])
@@ -33,7 +33,7 @@ def test_open_games_list_skips_full_games(temp_db):
     assert open_ids == [open_id]
 
 
-def test_find_game_by_booking_and_games_of_a_player(temp_db):
+def test_find_game_by_booking_and_games_of_a_player(clean_db):
     game_id = repo.create_game(booking_id=5)
     player = repo.get_or_create_player(user_id=1, name="Ana")
     repo.add_player_to_game(game_id, player["id"])
