@@ -1,11 +1,19 @@
+import os
 from functools import partial
 
 import pytest
 from werkzeug.security import generate_password_hash
 
-from accounts import repository as accounts_repository
-from accounts import service as accounts_service
-from bookings import repository as bookings_repository
+# Tests use their own database (bookings_test, created by db/init.sql), never the app's data.
+# CI sets DATABASE_URL itself; this default is the local-only password from docker-compose.yml.
+os.environ.setdefault(
+    "DATABASE_URL", "mssql://bookings_app:LocalDev_Bookings_Passw0rd@localhost:1433/bookings_test"
+)
+
+import db  # noqa: E402
+import migrate  # noqa: E402
+from accounts import service as accounts_service  # noqa: E402
+from bookings import repository as bookings_repository  # noqa: E402
 
 
 @pytest.fixture(autouse=True)
@@ -18,10 +26,16 @@ def fast_password_hashing(monkeypatch):
     )
 
 
+@pytest.fixture(scope="session")
+def migrated():
+    """Bring the test database up to the latest migration once per test run."""
+    migrate.apply_pending()
+    bookings_repository.seed_courts()
+
+
 @pytest.fixture
-def temp_db(tmp_path, monkeypatch):
-    """Point DATA_DIR at a fresh temporary folder, so each test gets an empty database."""
-    monkeypatch.setenv("DATA_DIR", str(tmp_path))
-    accounts_repository.init_schema()
-    bookings_repository.init_schema()
-    return tmp_path
+def clean_db(migrated):
+    """Empty the tables each test writes to. Courts are seed data and stay."""
+    with db.transaction() as cursor:
+        cursor.execute("DELETE FROM bookings")
+        cursor.execute("DELETE FROM users")
