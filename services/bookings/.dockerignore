@@ -1,0 +1,10 @@
+# Keep caches, local data and secrets out of the image
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.coverage
+htmlcov/
+tests/
+.env
+*.db
