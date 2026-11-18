@@ -42,5 +42,42 @@ services:
         /opt/mssql-tools18/bin/sqlcmd -S db -U sa -P "$$MSSQL_SA_PASSWORD" -C -b -i /init.sql
         -v BOOKINGS_DB_PASSWORD="$$BOOKINGS_DB_PASSWORD" MATCHMAKING_DB_PASSWORD="$$MATCHMAKING_DB_PASSWORD"
 
+  bookings:
+    build: ./services/bookings
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+    environment:
+      PORT: "8000"
+      DATABASE_URL: mssql://bookings_app:${BOOKINGS_DB_PASSWORD:-LocalDev_Bookings_Passw0rd}@db:1433/bookings
+      TOKEN_SECRET: ${TOKEN_SECRET:-LocalDev_Token_Secret}
+      CORS_ORIGINS: http://localhost:8080
+      APP_VERSION: local
+    ports:
+      - "8001:8000"
+    healthcheck: &service-health
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=3)"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  matchmaking:
+    build: ./services/matchmaking
+    # starts without waiting for bookings: it must keep serving its own domain when bookings is down
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+    environment:
+      PORT: "8000"
+      DATABASE_URL: mssql://matchmaking_app:${MATCHMAKING_DB_PASSWORD:-LocalDev_Matchmaking_Passw0rd}@db:1433/matchmaking
+      TOKEN_SECRET: ${TOKEN_SECRET:-LocalDev_Token_Secret}
+      CORS_ORIGINS: http://localhost:8080
+      BOOKINGS_URL: http://bookings:8000
+      BOOKINGS_TIMEOUT_S: "2"
+      APP_VERSION: local
+    ports:
+      - "8002:8000"
+    healthcheck: *service-health
+
 volumes:
   mssql-data:
