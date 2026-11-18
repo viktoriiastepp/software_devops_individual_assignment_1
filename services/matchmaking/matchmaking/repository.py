@@ -13,6 +13,11 @@ def get_or_create_player(user_id, name):
         return cursor.fetchone()
 
 
+def get_player(user_id):
+    """Read-only lookup: None if this user has never opened or joined a game."""
+    return db.fetch_one("SELECT * FROM players WHERE user_id = %s", (user_id,))
+
+
 def create_game(booking_id):
     row = db.fetch_one("INSERT INTO games (booking_id) OUTPUT INSERTED.id VALUES (%s)", (booking_id,))
     return row["id"]
