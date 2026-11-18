@@ -58,9 +58,9 @@ def connect(attempts=None):
 
 
 @contextmanager
-def transaction():
+def transaction(attempts=None):
     """Give a cursor whose rows are dicts. Commits if the block succeeds, rolls back if it fails."""
-    conn = connect()
+    conn = connect(attempts)
     try:
         cursor = conn.cursor(as_dict=True)
         yield cursor

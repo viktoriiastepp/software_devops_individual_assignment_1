@@ -9,6 +9,7 @@ Applied files are never edited; a correction is always a new file.
 import logging
 import os
 import re
+import sys
 
 import db
 
@@ -62,5 +63,5 @@ def apply_pending():
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
+    logging.basicConfig(stream=sys.stdout, level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
     apply_pending()

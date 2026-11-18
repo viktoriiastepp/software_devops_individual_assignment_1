@@ -1,20 +1,22 @@
 """Request logging and GET /health, registered on the Flask app of each service."""
 import logging
 import os
+import sys
 import time
 import uuid
 
-import db
 from flask import g, request
 
-log = logging.getLogger("requests")
+import db
+
+log = logging.getLogger("access")
 
 # Set by the pipeline to the git commit SHA, so /health shows which build is running.
 VERSION = os.environ.get("APP_VERSION", "dev")
 
 
 def init_app(app):
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
+    logging.basicConfig(stream=sys.stdout, level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
 
     @app.before_request
     def start_timer():
@@ -37,11 +39,13 @@ def init_app(app):
     def health():
         """200 when this service can read and write its own database, 503 otherwise."""
         try:
-            with db.transaction() as cursor:
-                cursor.execute("CREATE TABLE #health_probe (checked_at DATETIME2)")
-                cursor.execute("INSERT INTO #health_probe VALUES (SYSUTCDATETIME())")
-                cursor.execute("SELECT COUNT(*) AS n FROM #health_probe")
-                cursor.fetchone()
+            # one attempt only: /health must answer quickly, the caller decides whether to retry
+            with db.transaction(attempts=1) as cursor:
+                # one real write and one read on this service's own database (table from migration 002)
+                cursor.execute("UPDATE health_probe SET checked_at = SYSUTCDATETIME() WHERE id = 1")
+                cursor.execute("SELECT checked_at FROM health_probe WHERE id = 1")
+                if cursor.fetchone() is None:
+                    raise RuntimeError("health_probe row missing")
         except Exception as error:  # any database failure means the service is not healthy
             log.warning("health check failed: %s", error)
             return {"status": "error", "db": "unreachable", "version": VERSION}, 503
