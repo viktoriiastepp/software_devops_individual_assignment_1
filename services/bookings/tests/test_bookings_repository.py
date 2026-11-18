@@ -6,7 +6,7 @@ START = datetime(2026, 10, 5, 18, 0)
 END = datetime(2026, 10, 5, 19, 30)
 
 
-def test_six_courts_are_created_at_startup(clean_db):
+def test_six_courts_are_seeded_by_migration(clean_db):
     assert len(repo.list_courts()) == 6
 
 
