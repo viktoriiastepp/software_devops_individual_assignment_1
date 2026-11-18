@@ -1,0 +1,83 @@
+# Local development stack. Run everything with: docker compose up --build
+# The passwords below are local-only defaults for a database on your own laptop;
+# override them with environment variables. Azure uses different passwords stored as GitHub secrets.
+
+x-db-passwords: &db-passwords
+  MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:-LocalDev_Sa_Passw0rd}
+  BOOKINGS_DB_PASSWORD: ${BOOKINGS_DB_PASSWORD:-LocalDev_Bookings_Passw0rd}
+  MATCHMAKING_DB_PASSWORD: ${MATCHMAKING_DB_PASSWORD:-LocalDev_Matchmaking_Passw0rd}
+
+services:
+  db:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    platform: linux/amd64  # SQL Server has no ARM build; Rosetta emulates it on Apple Silicon
+    environment:
+      ACCEPT_EULA: "Y"
+      <<: *db-passwords
+    ports:
+      - "1433:1433"
+    volumes:
+      - mssql-data:/var/opt/mssql  # data survives restarts; never deleted to redeploy
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -C -Q 'SELECT 1' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+
+  db-init:
+    # one-off job: creates both databases and both logins, then exits
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    platform: linux/amd64
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      <<: *db-passwords
+    volumes:
+      - ./db/init.sql:/init.sql:ro
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - >-
+        /opt/mssql-tools18/bin/sqlcmd -S db -U sa -P "$$MSSQL_SA_PASSWORD" -C -b -i /init.sql
+        -v BOOKINGS_DB_PASSWORD="$$BOOKINGS_DB_PASSWORD" MATCHMAKING_DB_PASSWORD="$$MATCHMAKING_DB_PASSWORD"
+
+  bookings:
+    build: ./services/bookings
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+    environment:
+      PORT: "8000"
+      DATABASE_URL: mssql://bookings_app:${BOOKINGS_DB_PASSWORD:-LocalDev_Bookings_Passw0rd}@db:1433/bookings
+      TOKEN_SECRET: ${TOKEN_SECRET:-LocalDev_Token_Secret}
+      CORS_ORIGINS: http://localhost:8080
+      APP_VERSION: local
+    ports:
+      - "8001:8000"
+    healthcheck: &service-health
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=3)"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  matchmaking:
+    build: ./services/matchmaking
+    # starts without waiting for bookings: it must keep serving its own domain when bookings is down
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+    environment:
+      PORT: "8000"
+      DATABASE_URL: mssql://matchmaking_app:${MATCHMAKING_DB_PASSWORD:-LocalDev_Matchmaking_Passw0rd}@db:1433/matchmaking
+      TOKEN_SECRET: ${TOKEN_SECRET:-LocalDev_Token_Secret}
+      CORS_ORIGINS: http://localhost:8080
+      BOOKINGS_URL: http://bookings:8000
+      BOOKINGS_TIMEOUT_S: "2"
+      APP_VERSION: local
+    ports:
+      - "8002:8000"
+    healthcheck: *service-health
+
+volumes:
+  mssql-data:
