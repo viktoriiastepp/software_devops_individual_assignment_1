@@ -10,7 +10,7 @@ Consequences: I write SQL by hand and design the module structure myself, which 
 
 ## 2. Splitting the app into Bookings and Matchmaking domains
 Date: 2026-09-29
-Status: Decided
+Status: Superseded by 6
 Context: Court scheduling and player matching change for different reasons and are used by different stakeholders (club manager vs players). The app will be split into services in a later assignment, so the seam must exist now.
 Decision: Two separate packages, bookings/ and matchmaking/, each owning its own tables and logic. Matchmaking refers to a game's court slot only by booking_id and never queries the bookings tables directly.
 Alternatives considered: One shared models module with SQL joins across all tables, rejected because it would tie the domains together and force a rewrite of every cross-domain query when splitting them into services.
