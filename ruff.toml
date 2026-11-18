@@ -1,5 +1,7 @@
 # Linter settings shared by both services; CI runs: ruff check services
 line-length = 130
+# each service folder is its own import root, so its modules sort as first-party imports
+src = ["services/bookings", "services/matchmaking"]
 
 [lint]
 select = ["E", "F", "I"]
