@@ -1,52 +1,30 @@
-from functools import wraps
-
-from flask import Blueprint, flash, redirect, render_template, request, session, url_for
+"""Registration and login. Both answer with a signed token the UI sends on later requests."""
+from flask import Blueprint
 
 from accounts import service
+from api import ApiError, json_body, str_field
+from auth import issue_token
 
-bp = Blueprint("accounts", __name__)
-
-
-def login_required(view):
-    """Decorator: send visitors who are not logged in to the login page."""
-    @wraps(view)
-    def wrapped(*args, **kwargs):
-        if "user_id" not in session:
-            return redirect(url_for("accounts.login"))
-        return view(*args, **kwargs)
-    return wrapped
+bp = Blueprint("accounts", __name__, url_prefix="/auth")
 
 
-def start_session(user_id, username):
-    session.clear()
-    session["user_id"] = user_id
-    session["username"] = username
+def session_response(user_id, username, status):
+    return {"token": issue_token(user_id, username), "user": {"id": user_id, "username": username}}, status
 
 
-@bp.route("/register", methods=["GET", "POST"])
+@bp.post("/register")
 def register():
-    if request.method == "POST":
-        user_id, errors = service.register(request.form["username"], request.form["password"])
-        if not errors:
-            start_session(user_id, service.normalise(request.form["username"]))
-            return redirect(url_for("home"))
-        for error in errors:
-            flash(error)
-    return render_template("register.html")
+    data = json_body()
+    user_id, errors = service.register(str_field(data, "username"), str_field(data, "password"))
+    if errors:
+        return {"error": errors[0], "errors": errors}, 400
+    return session_response(user_id, service.normalise(data["username"]), 201)
 
 
-@bp.route("/login", methods=["GET", "POST"])
+@bp.post("/login")
 def login():
-    if request.method == "POST":
-        user = service.authenticate(request.form["username"], request.form["password"])
-        if user:
-            start_session(user["id"], user["username"])
-            return redirect(url_for("home"))
-        flash("Wrong username or password.")
-    return render_template("login.html")
-
-
-@bp.route("/logout", methods=["POST"])
-def logout():
-    session.clear()
-    return redirect(url_for("accounts.login"))
+    data = json_body()
+    user = service.authenticate(str_field(data, "username"), str_field(data, "password"))
+    if user is None:
+        raise ApiError(401, "Wrong username or password.")
+    return session_response(user["id"], user["username"], 200)

@@ -1,16 +1,11 @@
 """SQL for the bookings domain. Only this file touches the courts and bookings tables."""
 import db
 
-DEFAULT_COURTS = ["Court 1", "Court 2", "Court 3", "Court 4", "Court 5", "Court 6"]
-
-
-def seed_courts():
-    """Add the club's six courts if they are missing. Safe to run on every start."""
-    for name in DEFAULT_COURTS:
-        db.execute(
-            "IF NOT EXISTS (SELECT 1 FROM courts WHERE name = %s) INSERT INTO courts (name) VALUES (%s)",
-            (name, name),
-        )
+# every booking is read together with its court name, which lives in the same database
+BOOKING_COLUMNS = """
+    SELECT b.id, b.court_id, c.name AS court_name, b.user_id, b.start_time, b.end_time, b.status, b.cancelled_late
+    FROM bookings b JOIN courts c ON c.id = b.court_id
+"""
 
 
 def list_courts():
@@ -33,7 +28,13 @@ def create_booking(court_id, user_id, start, end):
 
 
 def get_booking(booking_id):
-    return db.fetch_one("SELECT * FROM bookings WHERE id = %s", (booking_id,))
+    return db.fetch_one(BOOKING_COLUMNS + " WHERE b.id = %s", (booking_id,))
+
+
+def get_bookings(booking_ids):
+    """Bookings for a list of ids; ids that do not exist are simply missing from the result."""
+    placeholders = ", ".join(["%s"] * len(booking_ids))
+    return db.fetch_all(BOOKING_COLUMNS + f" WHERE b.id IN ({placeholders}) ORDER BY b.id", tuple(booking_ids))
 
 
 def cancel_booking(booking_id, late):
@@ -44,4 +45,4 @@ def cancel_booking(booking_id, late):
 
 
 def bookings_for_user(user_id):
-    return db.fetch_all("SELECT * FROM bookings WHERE user_id = %s ORDER BY start_time", (user_id,))
+    return db.fetch_all(BOOKING_COLUMNS + " WHERE b.user_id = %s ORDER BY b.start_time", (user_id,))
