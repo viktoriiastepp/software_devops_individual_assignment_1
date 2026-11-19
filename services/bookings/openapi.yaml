@@ -1,0 +1,186 @@
+openapi: 3.0.3
+info:
+  title: Bookings service
+  version: "1.0"
+  description: >
+    Accounts, courts and court bookings of the padel club. Issues the signed login token
+    that both services accept. GET /bookings/{booking_id} and GET /bookings?ids= are also
+    called by the matchmaking service across the seam (see system.yaml).
+servers:
+  - url: http://localhost:8001
+    description: Local docker compose
+security:
+  - bearerAuth: []
+paths:
+  /health:
+    get:
+      summary: Health of this service and its own database
+      security: []
+      responses:
+        "200": { description: "Can read and write its database", content: { application/json: { schema: { $ref: "#/components/schemas/Health" } } } }
+        "503": { description: "Database unreachable", content: { application/json: { schema: { $ref: "#/components/schemas/Health" } } } }
+  /auth/register:
+    post:
+      summary: Create an account and log in
+      security: []
+      requestBody: { $ref: "#/components/requestBodies/Credentials" }
+      responses:
+        "201": { description: "Account created", content: { application/json: { schema: { $ref: "#/components/schemas/Session" } } } }
+        "400": { $ref: "#/components/responses/ValidationError" }
+  /auth/login:
+    post:
+      summary: Log in and get a token
+      security: []
+      requestBody: { $ref: "#/components/requestBodies/Credentials" }
+      responses:
+        "200": { description: "Logged in", content: { application/json: { schema: { $ref: "#/components/schemas/Session" } } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+  /courts:
+    get:
+      summary: List the club's courts
+      security: []
+      responses:
+        "200":
+          description: All courts
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [courts]
+                properties:
+                  courts:
+                    type: array
+                    items:
+                      type: object
+                      required: [id, name]
+                      properties:
+                        id: { type: integer }
+                        name: { type: string, example: Court 1 }
+  /bookings:
+    post:
+      summary: Book a court for a 90-minute slot
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [court_id, start_time]
+              properties:
+                court_id: { type: integer, example: 1 }
+                start_time: { type: string, example: "2026-11-25T18:00", description: "Local date and time, ISO 8601" }
+      responses:
+        "201": { description: "Booked", content: { application/json: { schema: { $ref: "#/components/schemas/Booking" } } } }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+    get:
+      summary: Several bookings by id (called by matchmaking)
+      parameters:
+        - name: ids
+          in: query
+          required: true
+          description: 1 to 100 comma-separated booking ids; ids that do not exist are left out
+          schema: { type: string, example: "1,2,3" }
+      responses:
+        "200": { $ref: "#/components/responses/BookingList" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+  /bookings/mine:
+    get:
+      summary: The logged-in member's bookings
+      responses:
+        "200": { $ref: "#/components/responses/BookingList" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+  /bookings/{booking_id}:
+    get:
+      summary: One booking (called by matchmaking)
+      parameters: [{ $ref: "#/components/parameters/BookingId" }]
+      responses:
+        "200": { description: "The booking", content: { application/json: { schema: { $ref: "#/components/schemas/Booking" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /bookings/{booking_id}/cancel:
+    post:
+      summary: Cancel one of my bookings (late if less than 24 hours before)
+      parameters: [{ $ref: "#/components/parameters/BookingId" }]
+      responses:
+        "200": { description: "Cancelled", content: { application/json: { schema: { $ref: "#/components/schemas/Booking" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer, description: "Token from /auth/login or /auth/register" }
+  parameters:
+    BookingId: { name: booking_id, in: path, required: true, schema: { type: integer } }
+  requestBodies:
+    Credentials:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [username, password]
+            properties:
+              username: { type: string, example: ana }
+              password: { type: string, format: password }
+  responses:
+    BookingList:
+      description: Bookings
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [bookings]
+            properties:
+              bookings: { type: array, items: { $ref: "#/components/schemas/Booking" } }
+    BadRequest: { description: "Invalid input", content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
+    ValidationError: { description: "Rejected by a business rule", content: { application/json: { schema: { $ref: "#/components/schemas/ValidationError" } } } }
+    Unauthorized: { description: "Missing, invalid or expired token", content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
+    Forbidden: { description: "Not your booking", content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
+    NotFound: { description: "Not found", content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
+    Conflict: { description: "Already cancelled", content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
+  schemas:
+    Booking:
+      type: object
+      required: [id, court_id, court_name, user_id, start_time, end_time, status, cancelled_late]
+      properties:
+        id: { type: integer }
+        court_id: { type: integer }
+        court_name: { type: string, example: Court 1 }
+        user_id: { type: integer }
+        start_time: { type: string, example: "2026-11-25T18:00" }
+        end_time: { type: string, example: "2026-11-25T19:30" }
+        status: { type: string, enum: [active, cancelled] }
+        cancelled_late: { type: boolean }
+    Session:
+      type: object
+      required: [token, user]
+      properties:
+        token: { type: string }
+        user:
+          type: object
+          required: [id, username]
+          properties:
+            id: { type: integer }
+            username: { type: string }
+    Health:
+      type: object
+      required: [status, db, version]
+      properties:
+        status: { type: string, enum: [ok, error] }
+        db: { type: string, enum: [ok, unreachable] }
+        version: { type: string, description: Git commit SHA of the running image }
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error: { type: string }
+    ValidationError:
+      type: object
+      required: [error]
+      properties:
+        error: { type: string }
+        errors: { type: array, items: { type: string } }

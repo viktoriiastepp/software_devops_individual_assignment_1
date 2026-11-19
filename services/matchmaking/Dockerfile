@@ -24,6 +24,7 @@ USER appuser
 
 EXPOSE 8000
 
-# apply pending migrations once, then start 2 gunicorn workers (exec: gunicorn receives the stop signal).
+# apply pending migrations once, then start gunicorn with one worker and 8 threads (exec: gunicorn receives the stop signal);
+# one process keeps the fallback cache of booking details in one place.
 # --timeout 120 leaves room for a paused Azure database to resume on the first request.
-CMD ["sh", "-c", "python migrate.py && exec gunicorn --bind 0.0.0.0:${PORT} --workers 2 --timeout 120 'app:create_app()'"]
+CMD ["sh", "-c", "python migrate.py && exec gunicorn --bind 0.0.0.0:${PORT} --workers 1 --threads 8 --timeout 120 'app:create_app()'"]

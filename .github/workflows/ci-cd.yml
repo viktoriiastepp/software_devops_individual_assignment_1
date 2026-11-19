@@ -1,0 +1,95 @@
+# CI on every push and pull request: lint, validate the API documents, test each service on a
+# SQL Server container (never Azure SQL), build both images, and run the cross-seam integration
+# test against the full compose stack. CD jobs (main only, after all CI jobs pass) are added in ADR-8.
+name: CI/CD
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: pip install ruff==0.15.0
+      - run: ruff check services tests
+
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: pip install openapi-spec-validator==0.9.0 PyYAML==6.0.3 pytest==9.1.1
+      - name: Validate each openapi.yaml against the OpenAPI specification
+        run: openapi-spec-validator services/bookings/openapi.yaml services/matchmaking/openapi.yaml
+      - name: Check that the endpoints matchmaking calls exist in the bookings document
+        run: pytest -q tests/integration/test_contract.py
+
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - service: bookings
+            coverage: --cov=accounts --cov=bookings
+          - service: matchmaking
+            coverage: --cov=matchmaking
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Start SQL Server and create the test databases (same compose file as local development)
+        run: docker compose run --rm db-init
+      - run: pip install -r services/${{ matrix.service }}/requirements.txt
+      - name: Run tests with a 70% coverage gate on the core logic
+        working-directory: services/${{ matrix.service }}
+        run: pytest -q ${{ matrix.coverage }} --cov-report=term-missing --cov-fail-under=70
+
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [bookings, matchmaking]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the ${{ matrix.service }} image
+        run: docker build -t ${{ matrix.service }}:${{ github.sha }} services/${{ matrix.service }}
+
+  integration:
+    runs-on: ubuntu-latest
+    needs: [build]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Start the whole system with docker compose
+        run: docker compose up -d --build
+      - name: Wait until both services report healthy
+        run: |
+          for i in $(seq 1 60); do
+            if curl -fs localhost:8001/health && curl -fs localhost:8002/health; then exit 0; fi
+            sleep 5
+          done
+          exit 1
+      - run: pip install pytest==9.1.1 requests==2.34.2 PyYAML==6.0.3
+      - name: Cross-seam integration tests, including bookings being stopped
+        run: pytest -q tests/integration
+      - name: Show service logs if anything failed
+        if: failure()
+        run: docker compose logs --tail 100

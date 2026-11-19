@@ -1,0 +1,211 @@
+openapi: 3.0.3
+info:
+  title: Matchmaking service
+  version: "1.0"
+  description: >
+    Players, level-matched games, balanced 2v2 teams and Elo ratings. Accepts the login token
+    issued by the bookings service. Reads booking details from the bookings service with a
+    2-second timeout; when bookings is unavailable, listings use the last details seen and set
+    "notice", and opening a game answers 503.
+servers:
+  - url: http://localhost:8002
+    description: Local docker compose
+security:
+  - bearerAuth: []
+paths:
+  /health:
+    get:
+      summary: Health of this service and its own database (not of bookings)
+      security: []
+      responses:
+        "200": { description: "Can read and write its database", content: { application/json: { schema: { $ref: "#/components/schemas/Health" } } } }
+        "503": { description: "Database unreachable", content: { application/json: { schema: { $ref: "#/components/schemas/Health" } } } }
+  /games:
+    post:
+      summary: Open a game on one of my active bookings (checks the booking with the bookings service)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [booking_id]
+              properties:
+                booking_id: { type: integer }
+      responses:
+        "201": { description: "Game opened", content: { application/json: { schema: { $ref: "#/components/schemas/Game" } } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { description: "Not my booking or no such booking", content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
+        "409": { description: "Booking cancelled or already has a game", content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
+        "503": { description: "Bookings service unavailable", content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
+  /games/open:
+    get:
+      summary: Open games whose booking is still active
+      responses:
+        "200": { $ref: "#/components/responses/GameList" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+  /games/mine:
+    get:
+      summary: Games I have opened or joined (read-only, creates nothing)
+      responses:
+        "200": { $ref: "#/components/responses/GameList" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+  /games/{game_id}:
+    get:
+      summary: One game with its players and booking details
+      parameters: [{ $ref: "#/components/parameters/GameId" }]
+      responses:
+        "200": { $ref: "#/components/responses/GameDetail" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /games/{game_id}/join:
+    post:
+      summary: Join an open game; the fourth player triggers balanced teams
+      parameters: [{ $ref: "#/components/parameters/GameId" }]
+      responses:
+        "200": { $ref: "#/components/responses/GameDetail" }
+        "400": { description: "Rating outside the game's level window or already joined", content: { application/json: { schema: { $ref: "#/components/schemas/ValidationError" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { description: "Game is not open", content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
+  /games/{game_id}/result:
+    post:
+      summary: Record the winning team of a full game and update the Elo ratings
+      parameters: [{ $ref: "#/components/parameters/GameId" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [winning_team]
+              properties:
+                winning_team: { type: integer, enum: [1, 2] }
+      responses:
+        "200": { $ref: "#/components/responses/GameDetail" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { description: "Not a full game, not a player in it, or result already recorded", content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
+  /players/me:
+    get:
+      summary: My rating (1000 for members who have not played yet; creates nothing)
+      responses:
+        "200":
+          description: My name and rating
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [name, rating]
+                properties:
+                  name: { type: string }
+                  rating: { type: integer }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+  /leaderboard:
+    get:
+      summary: Top 20 players by rating
+      security: []
+      responses:
+        "200":
+          description: Players, highest rating first
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [players]
+                properties:
+                  players:
+                    type: array
+                    items:
+                      type: object
+                      required: [name, rating]
+                      properties:
+                        name: { type: string }
+                        rating: { type: integer }
+components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer, description: Token issued by the bookings service }
+  parameters:
+    GameId: { name: game_id, in: path, required: true, schema: { type: integer } }
+  responses:
+    GameList:
+      description: Games; notice is set when booking details come from the cache because bookings is unavailable
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [games, notice]
+            properties:
+              games: { type: array, items: { $ref: "#/components/schemas/Game" } }
+              notice: { type: string, nullable: true }
+    GameDetail:
+      description: The game; notice is set when booking details come from the cache
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: "#/components/schemas/Game"
+              - type: object
+                required: [notice]
+                properties:
+                  notice: { type: string, nullable: true }
+    BadRequest: { description: "Invalid input", content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
+    Unauthorized: { description: "Missing, invalid or expired token", content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
+    NotFound: { description: "Game not found", content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
+  schemas:
+    Game:
+      type: object
+      required: [id, booking_id, status, winning_team, booking, level, players]
+      properties:
+        id: { type: integer }
+        booking_id: { type: integer }
+        status: { type: string, enum: [open, full, finished] }
+        winning_team: { type: integer, nullable: true, enum: [1, 2] }
+        level: { type: integer, nullable: true, description: Average rating of the players }
+        booking:
+          description: Booking details from the bookings service (same shape as its Booking schema); null if unavailable and not cached
+          nullable: true
+          allOf: [{ $ref: "#/components/schemas/Booking" }]
+        players:
+          type: array
+          items:
+            type: object
+            required: [id, name, rating, team]
+            properties:
+              id: { type: integer }
+              name: { type: string }
+              rating: { type: integer }
+              team: { type: integer, nullable: true, enum: [1, 2] }
+    Booking:
+      description: Copy of the Booking schema in services/bookings/openapi.yaml (the response of GET /bookings/{booking_id})
+      type: object
+      required: [id, court_id, court_name, user_id, start_time, end_time, status, cancelled_late]
+      properties:
+        id: { type: integer }
+        court_id: { type: integer }
+        court_name: { type: string }
+        user_id: { type: integer }
+        start_time: { type: string }
+        end_time: { type: string }
+        status: { type: string, enum: [active, cancelled] }
+        cancelled_late: { type: boolean }
+    Health:
+      type: object
+      required: [status, db, version]
+      properties:
+        status: { type: string, enum: [ok, error] }
+        db: { type: string, enum: [ok, unreachable] }
+        version: { type: string }
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error: { type: string }
+    ValidationError:
+      type: object
+      required: [error]
+      properties:
+        error: { type: string }
+        errors: { type: array, items: { type: string } }
