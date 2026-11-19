@@ -79,5 +79,13 @@ services:
       - "8002:8000"
     healthcheck: *service-health
 
+  ui:
+    # the static UI, served as plain files by a stock nginx image (no Dockerfile); on Azure it is a Static Web App
+    image: nginx:1.27-alpine
+    volumes:
+      - ./ui:/usr/share/nginx/html:ro
+    ports:
+      - "8080:80"
+
 volumes:
   mssql-data:

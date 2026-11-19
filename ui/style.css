@@ -24,3 +24,8 @@ button.secondary { background: #8a9a8f; }
 .tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
 .tile { text-decoration: none; color: inherit; font-weight: bold; font-size: 1.1rem; }
 .tile span { font-weight: normal; font-size: 0.95rem; color: #5b6b60; }
+.user { font-size: 0.95rem; }
+[hidden] { display: none !important; }
+td.actions button { padding: 0.35rem 0.7rem; font-size: 0.9rem; }
+td.actions { display: table-cell; white-space: nowrap; }
+td.actions button + button { margin-left: 0.4rem; }

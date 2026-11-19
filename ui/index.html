@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Padel Matchmaker</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="config.js"></script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <header>
+    <span class="brand">Padel Matchmaker</span>
+    <nav id="nav" hidden>
+      <a href="#bookings">Bookings</a>
+      <a href="#games">Games</a>
+      <a href="#leaderboard">Leaderboard</a>
+    </nav>
+    <span id="who" class="user"></span>
+    <button id="logout" type="button" hidden>Log out</button>
+  </header>
+
+  <main>
+    <p id="message" class="flash" hidden></p>
+
+    <section id="view-login" hidden>
+      <h1>Welcome</h1>
+      <p class="hint">Book a court, then open a game on it. Players join at their level and the fourth player triggers balanced teams.</p>
+      <form id="auth-form" class="card">
+        <label>Username <input name="username" autocomplete="username" required></label>
+        <label>Password <input name="password" type="password" autocomplete="current-password" required></label>
+        <p class="hint">New here? Usernames are 3 to 20 letters, digits or underscores; passwords at least 8 characters.</p>
+        <div class="actions">
+          <button type="submit" data-action="login">Log in</button>
+          <button type="submit" data-action="register" class="secondary">Register</button>
+        </div>
+      </form>
+    </section>
+
+    <section id="view-bookings" hidden>
+      <h1>Bookings</h1>
+      <form id="booking-form" class="card">
+        <label>Court <select name="court_id" id="court-select" required></select></label>
+        <label>Start time <input name="start_time" type="datetime-local" step="1800" required></label>
+        <p class="hint">Slots last 90 minutes, between 08:00 and 23:00.</p>
+        <button type="submit">Book court</button>
+      </form>
+      <h2>My bookings</h2>
+      <table>
+        <thead><tr><th>Court</th><th>Time</th><th>Status</th><th></th></tr></thead>
+        <tbody id="bookings-body"></tbody>
+      </table>
+    </section>
+
+    <section id="view-games" hidden>
+      <h1>Games</h1>
+      <p id="games-notice" class="flash" hidden></p>
+      <h2>Open games</h2>
+      <table>
+        <thead><tr><th>Court</th><th>Time</th><th>Level</th><th>Players</th><th></th></tr></thead>
+        <tbody id="open-games-body"></tbody>
+      </table>
+      <h2>My games</h2>
+      <table>
+        <thead><tr><th>Court</th><th>Time</th><th>Status</th><th>Teams</th><th></th></tr></thead>
+        <tbody id="my-games-body"></tbody>
+      </table>
+    </section>
+
+    <section id="view-leaderboard" hidden>
+      <h1>Leaderboard</h1>
+      <p id="my-rating" class="hint"></p>
+      <table>
+        <thead><tr><th>#</th><th>Player</th><th>Rating</th></tr></thead>
+        <tbody id="leaderboard-body"></tbody>
+      </table>
+    </section>
+  </main>
+</body>
+</html>
